@@ -1,0 +1,16 @@
+{
+  "name": "F. Silva Reis — Central de Preços",
+  "short_name": "FSR Preços",
+  "description": "Central de Preços F. Silva Reis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F0E8",
+  "theme_color": "#2C2416",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
