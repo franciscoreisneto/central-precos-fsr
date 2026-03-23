@@ -3,7 +3,9 @@ export const SHEETS_ID = '1hdSXJYd1D7pZ1CaFhVTPrzjn-Hf6yiLgaYdhoua7Usw';
 export const SHEET_NAMES = {
   nativaBruta: 'Nativa Bruta',
   beneficiada: 'Beneficiada',
+  compensados: 'Compensados',
   reflorestamento: 'Reflorestamento',
+  portas: 'Portas',
   pisosProntos: 'Piso Pronto',
   vendedores: 'Vendedores',
 };
@@ -31,9 +33,9 @@ export const PERFIS = [
 export const CATEGORIAS = [
   { id: 'nativa', nome: 'Nativa Bruta', icon: '🌳', cor: '#2D5016', sheet: 'nativaBruta' },
   { id: 'beneficiada', nome: 'Beneficiada', icon: '🪵', cor: '#6B4226', sheet: 'beneficiada' },
-  { id: 'compensados', nome: 'Compensados', icon: '📦', cor: '#8B6914', sheet: null },
+  { id: 'compensados', nome: 'Compensados', icon: '📦', cor: '#8B6914', sheet: 'compensados' },
   { id: 'reflorestamento', nome: 'Reflor.', icon: '🌲', cor: '#4A7C2E', sheet: 'reflorestamento' },
-  { id: 'portas', nome: 'Portas', icon: '🚪', cor: '#6B3A2A', sheet: null },
+  { id: 'portas', nome: 'Portas', icon: '🚪', cor: '#6B3A2A', sheet: 'portas' },
   { id: 'pisopronto', nome: 'Piso Pronto', icon: '🏠', cor: '#5A4A38', sheet: 'pisosProntos' },
 ];
 
