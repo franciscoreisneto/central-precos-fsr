@@ -24,7 +24,6 @@ const parseNum = (v) => {
   const n = parseFloat(cleaned);
   return isNaN(n) ? null : n;
 };
-
 const parseNativa = (row) => ({
   id: `nat-${Math.random().toString(36).slice(2, 8)}`,
   fornecedor: row['Fornecedor'] || '',
@@ -50,14 +49,14 @@ const parseBeneficiada = (row) => ({
   qtdDisp: row['M²/ML Disp.'] || row['M2/ML Disp.'] || '',
   comprimento: row['Comprimento'] || '',
   unidade: row['Unidade'] || 'm²',
-  precoVista: parseNum(row['Preço À Vista'] || row['Preco A Vista']),
-  precoMedio: parseNum(row['Preço Ent+30/45/60'] || row['Preco Ent+30/45/60']),
-  precoLongo: parseNum(row['Preço Ent+30/45/60/75/90'] || row['Preco Ent+30/45/60/75/90']),
-  condicao: row['Condição'] || row['Condicao'] || '',
+  precoVista: parseNum(row['A VISTA'] || row['A VISTA '] || row['Preço À Vista']),
+  precoMedio: parseNum(row['A PRAZO'] || row['Preço Ent+30/45/60']),
+  precoLongo: parseNum(null),
+  condicao: row['PRAZO'] || row['Condição'] || row['Condicao'] || '',
   obs: row['Obs'] || '',
+  destaque: (row['DESTAQUE'] || row['Destaque'] || '').toUpperCase() === 'SIM',
   atualizado: row['Atualizado'] || '',
 });
-
 const parseReflorestamento = (row) => ({
   id: `ref-${Math.random().toString(36).slice(2, 8)}`,
   fornecedor: row['Fornecedor'] || '',
@@ -73,7 +72,7 @@ const parseReflorestamento = (row) => ({
   atualizado: row['Atualizado'] || '',
 });
 
-const parseCompensados = (row, index) => {
+const parseCompensados = (row) => {
   const item = {
     id: `comp-${Math.random().toString(36).slice(2, 8)}`,
     fornecedor: row['Fornecedor'] || '',
@@ -83,55 +82,38 @@ const parseCompensados = (row, index) => {
     condicao: row['Condição'] || row['Condicao'] || '',
     obs: row['Obs'] || '',
     disponivel: row['Disponível'] || row['Disponivel'] || '',
-    destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
+    destaque: (row['Destaque'] || row['DESTAQUE'] || '').toUpperCase() === 'SIM',
     atualizado: row['Atualizado'] || '',
   };
-
   const medidas = ['4mm', '6mm', '10mm', '15mm', '18mm', '20mm', '25mm'];
   const subs = [];
-
   medidas.forEach((med) => {
-    const precoKey = `${med}`;
-    const preco = parseNum(row[precoKey]);
-    if (preco !== null) {
-      subs.push({ med, pv: preco });
-    }
+    const preco = parseNum(row[med]);
+    if (preco !== null) { subs.push({ med, pv: preco }); }
   });
-
-  if (subs.length > 0) {
-    item.subs = subs;
-  }
-
+  if (subs.length > 0) item.subs = subs;
   return item;
 };
-
 const parsePortas = (row) => {
   const item = {
     id: `port-${Math.random().toString(36).slice(2, 8)}`,
     fornecedor: row['Fornecedor'] || '',
+    especie: row['Espécie'] || row['Especie'] || '',
     produto: row['Produto'] || '',
     unidade: row['Unidade'] || 'un',
     condicao: row['Condição'] || row['Condicao'] || '',
     obs: row['Obs'] || '',
     disponivel: row['Disponível'] || row['Disponivel'] || '',
-    destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
+    destaque: (row['Destaque'] || row['DESTAQUE'] || '').toUpperCase() === 'SIM',
     atualizado: row['Atualizado'] || '',
   };
-
-  const tamanhos = ['60x210cm', '70x210cm', '80x210cm', '90x210cm', '100x210cm'];
+  const tamanhos = ['60cm', '70cm', '80cm', '90cm', '100cm', '110cm'];
   const subs = [];
-
   tamanhos.forEach((tam) => {
     const preco = parseNum(row[tam]);
-    if (preco !== null) {
-      subs.push({ med: tam, pv: preco });
-    }
+    if (preco !== null) { subs.push({ med: tam, pv: preco }); }
   });
-
-  if (subs.length > 0) {
-    item.subs = subs;
-  }
-
+  if (subs.length > 0) item.subs = subs;
   return item;
 };
 
@@ -149,7 +131,6 @@ const parsePisosProntos = (row) => ({
   obs: row['Obs'] || '',
   atualizado: row['Atualizado'] || '',
 });
-
 const parseVendedores = (row) => ({
   id: row['ID'] || '',
   nome: row['Nome'] || '',
