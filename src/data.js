@@ -85,7 +85,7 @@ const parseCompensados = (row) => {
     destaque: (row['Destaque'] || row['DESTAQUE'] || '').toUpperCase() === 'SIM',
     atualizado: row['Atualizado'] || '',
   };
-  const medidas = ['4mm', '6mm', '10mm', '15mm', '18mm', '20mm', '25mm'];
+  const medidas = ['4mm', '6mm', '10mm', '12mm', '15mm', '18mm', '20mm', '25mm'];
   const subs = [];
   medidas.forEach((med) => {
     const preco = parseNum(row[med]);
