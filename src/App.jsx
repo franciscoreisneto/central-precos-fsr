@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { loadAllData } from "./data";
 
 const E={nome:"F. Silva Reis",site:"www.fsilvareis.com.br",ig:"@f.silvareis",tel:"(21) XXXX-XXXX",email:"contato@fsilvareis.com.br",end:"Rio de Janeiro — RJ"};
 const SHEETS_URL="https://docs.google.com/spreadsheets/d/1hdSXJYd1D7pZ1CaFhVTPrzjn-Hf6yiLgaYdhoua7Usw/edit";
@@ -56,6 +57,56 @@ const initData={
   ],
 };
 
+const mapSheetsToV9 = (sheetsData) => {
+  return Object.keys(sheetsData).reduce((acc, catKey) => {
+    const items = sheetsData[catKey] || [];
+    acc[catKey] = items.map((item) => {
+      const mapped = {
+        id: item.id,
+        f: item.fornecedor || "",
+        e: item.especie || "",
+        p: item.produto || "",
+        u: item.unidade || "m²",
+        cd: item.condicao || "",
+        ob: item.obs || "",
+        d: item.disponivel || "",
+        dt: item.destaque || false,
+        ts: item.atualizado ? new Date(item.atualizado).getTime() : Date.now(),
+      };
+
+      if (catKey === "nativa") {
+        mapped.pv = item.precoVista;
+        mapped.pm = item.precoPrazo;
+      } else if (catKey === "beneficiada") {
+        mapped.tp = item.tipo;
+        mapped.dm = item.dimensoes;
+        mapped.pv = item.precoVista;
+        mapped.pm = item.precoMedio;
+        mapped.pl = item.precoLongo;
+      } else if (catKey === "compensados") {
+        mapped.pv = item.precoVista;
+        if (item.subs && item.subs.length > 0) {
+          mapped.subs = item.subs;
+        }
+      } else if (catKey === "reflorestamento") {
+        mapped.pv = item.precoBase || item.precoTotal;
+      } else if (catKey === "portas") {
+        if (item.subs && item.subs.length > 0) {
+          mapped.subs = item.subs;
+        }
+      } else if (catKey === "pisosProntos") {
+        mapped.dm = item.dimensoes;
+        mapped.pv = item.precoVista;
+        mapped.pm = item.precoMedio;
+        mapped.pl = item.precoLongo;
+      }
+
+      return mapped;
+    });
+    return acc;
+  }, {});
+};
+
 const fmt=v=>v!=null?v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—";
 const nm=i=>{if(i.e&&i.p)return`${i.e} — ${i.p}`;if(i.e&&i.dm)return`${i.e} — ${i.dm}`;return i.e||i.p||i.dm||"—";};
 const pr=(i,u)=>{const p=i.pv;return!p?null:u.tipo==="admin"?p:Math.round(p*(1+u.mg/100));};
@@ -77,6 +128,7 @@ const w=window.open("","_blank");if(w){w.document.write(h);w.document.close();se
 export default function App(){
   const[usr,setUsr]=useState(null);
   const[data,setData]=useState(initData);
+  const[loading,setLoading]=useState(false);
   const[cat,setCat]=useState("nativa");
   const[q,setQ]=useState("");
   const[ff,setFF]=useState("Todos");
@@ -100,10 +152,29 @@ export default function App(){
   const[seenNews,setSeenNews]=useState(new Set());
 
   const adm=usr?.tipo==="admin";
+
+  useEffect(() => {
+    if (!usr) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const sheetsData = await loadAllData();
+        const mappedData = mapSheetsToV9(sheetsData);
+        setData(mappedData);
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [usr]);
+
   useEffect(()=>{if(usr)setCat(usr.cat||"nativa");},[usr]);
   useEffect(()=>{setFF("Todos");setExp(null);setSel(new Set());setEF(new Set());setEdit(null);setAddM(false);},[cat]);
 
-  // News: items new (ts < 48h) or destaque across ALL categories
   const newsItems=useMemo(()=>{
     if(!usr)return[];
     const cutoff=now()-H48;
@@ -124,7 +195,6 @@ export default function App(){
   const filt=useMemo(()=>items.filter(i=>{const t=q.toLowerCase();const mb=!q||[i.e,i.p,i.f,i.ob,i.tp,i.dm].filter(Boolean).some(x=>x.toLowerCase().includes(t));return mb&&(ff==="Todos"||i.f===ff)&&(!onlyFav||fav.has(i.id));}),[items,q,ff,onlyFav,fav]);
   const grp=useMemo(()=>{const m=new Map();filt.forEach(i=>{const k=i.f||"Outros";if(!m.has(k))m.set(k,[]);m.get(k).push(i);});return[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0]));},[filt]);
   const forns=useMemo(()=>["Todos",...new Set(items.map(x=>x.f).filter(Boolean))],[items]);
-  // All items flat for quick update dropdown
   const allItems=useMemo(()=>data[quCat]||[],[data,quCat]);
 
   const tSel=(id,e)=>{e.stopPropagation();setSel(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});};
@@ -137,7 +207,6 @@ export default function App(){
   const saveEdit=(id,d)=>{setData(prev=>({...prev,[cat]:prev[cat].map(x=>x.id===id?{...x,...d,ts:now()}:x)}));setEdit(null);setEditD(null);};
   const addItem=d=>{setData(prev=>({...prev,[cat]:[{...d,id:"new_"+Date.now(),ts:now()},...prev[cat]]}));setAddM(false);setNewI(null);};
 
-  // Quick update save
   const quickSave=()=>{
     if(!quItem)return;
     const newPrice=parseFloat(quPrice);
@@ -154,7 +223,6 @@ export default function App(){
     setQuItem("");setQuPrice("");setQuDisp("");setQuickUp(false);
   };
 
-  // LOGIN
   if(!usr)return(
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${S.dk},#5A4A38)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Source Sans 3',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
@@ -165,7 +233,16 @@ export default function App(){
     </div>
   );
 
-  // EDIT FORM
+  if(loading)return(
+    <div style={{minHeight:"100vh",background:S.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Source Sans 3',sans-serif"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:16}}>⏳</div>
+        <div style={{color:S.dk,fontSize:14,fontWeight:700}}>Carregando dados...</div>
+        <div style={{color:S.mu,fontSize:12,marginTop:8}}>Buscando informações do Google Sheets</div>
+      </div>
+    </div>
+  );
+
   const EF=({d,setD,onSave,onCancel,title})=>(
     <div onClick={stop} style={{background:S.wh,borderRadius:8,border:`2px solid ${S.go}`,padding:12,marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontWeight:700,fontSize:13}}>{title}</span><button onClick={e=>{stop(e);onCancel();}} style={{...B,background:"none",color:S.mu,fontSize:18}}>✕</button></div>
@@ -202,7 +279,6 @@ export default function App(){
     </div>
   );
 
-  // PEDIDO
   if(ped){
     const i=ped.item;const tF=ped.its?.reduce((s,x)=>s+(parseFloat(x.pF||0)*parseFloat(x.q||0)),0)||0;const tC=ped.its?.reduce((s,x)=>s+(parseFloat(x.pC||0)*parseFloat(x.q||0)),0)||0;const mg=tC-tF;
     const txt=`📋 PEDIDO — ${E.nome}\nPerfil: ${usr.nome}\nCliente: ${ped.cli}\nFornecedor: ${ped.forn||i.f}\n──────────\n${nm(i)}\n${(ped.its||[]).map((x,j)=>`${j+1}. ${x.q||"—"} ${i.u||""} ${x.m?`(${x.m})`:""}\n   Forn: ${x.pF?fmt(x.pF):"-"} → Cli: ${x.pC?fmt(x.pC):"-"}`).join("\n")}\n\nForn: ${fmt(tF)} | Cli: ${fmt(tC)} | Margem: ${fmt(mg)}\nCond: ${ped.cd}${ped.ob?`\nObs: ${ped.ob}`:""}`;
@@ -254,7 +330,6 @@ export default function App(){
     );
   }
 
-  // CARD
   const Card=({item:i})=>{
     const isE=exp===i.id,isF=fav.has(i.id),isS=sel.has(i.id),p=pr(i,usr),hasSubs=i.subs?.length>0;
     const isNew=i.ts&&i.ts>(now()-H48);
@@ -289,7 +364,6 @@ export default function App(){
 
   const ct=CATS.find(c=>c.id===cat);const ns=sel.size;
 
-  // NEWS OVERLAY
   if(showNews)return(
     <div style={{minHeight:"100vh",background:S.bg,fontFamily:"'Source Sans 3',sans-serif",color:S.dk,maxWidth:480,margin:"0 auto"}}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
@@ -319,7 +393,6 @@ export default function App(){
     </div>
   );
 
-  // QUICK UPDATE OVERLAY
   if(quickUp)return(
     <div style={{minHeight:"100vh",background:S.bg,fontFamily:"'Source Sans 3',sans-serif",color:S.dk,maxWidth:480,margin:"0 auto"}}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
@@ -347,7 +420,6 @@ export default function App(){
     </div>
   );
 
-  // MAIN
   return(
     <div style={{minHeight:"100vh",background:S.bg,fontFamily:"'Source Sans 3',sans-serif",color:S.dk,maxWidth:480,margin:"0 auto",paddingBottom:80}}>
       <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
@@ -355,7 +427,6 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <div><h1 style={{fontFamily:"'DM Serif Display',serif",fontSize:20,color:S.cr,margin:0}}>F. Silva Reis</h1><p style={{color:S.ml,fontSize:9,margin:0,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5}}>Central de Preços</p></div>
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
-            {/* NEWS BADGE */}
             <button onClick={()=>setShowNews(true)} style={{...B,background:"rgba(255,255,255,0.1)",color:S.cr,fontSize:12,padding:"4px 8px",borderRadius:6,position:"relative"}}>
               🔔{unseenNews>0&&<span style={{position:"absolute",top:-4,right:-4,background:S.rd,color:"white",fontSize:8,fontWeight:700,width:16,height:16,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>{unseenNews}</span>}
             </button>
@@ -396,7 +467,6 @@ export default function App(){
       </div>
       <div style={{textAlign:"center",padding:"12px 16px 20px",fontSize:10,color:S.ml}}>{filt.length} itens</div>
 
-      {/* FLOATING ACTION BUTTON — Admin only */}
       {adm&&<button onClick={()=>setQuickUp(true)} style={{...B,position:"fixed",bottom:24,right:24,width:56,height:56,borderRadius:28,background:`linear-gradient(135deg,${S.go},#E8C65A)`,color:S.dk,fontSize:22,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(44,36,22,0.4)",zIndex:200}}>⚡</button>}
     </div>
   );
