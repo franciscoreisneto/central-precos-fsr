@@ -57,56 +57,67 @@ const initData={
   ],
 };
 
+const parseTS = (v) => {
+  if (!v) return Date.now();
+  const meses = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+  const m = String(v).toLowerCase().match(/^(\w{3})\/(\d{2,4})$/);
+  if (m) {
+    const mes = meses[m[1]];
+    const ano = m[2].length === 2 ? 2000 + parseInt(m[2]) : parseInt(m[2]);
+    if (mes !== undefined) return new Date(ano, mes, 15).getTime();
+  }
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? Date.now() : d.getTime();
+};
+
 const mapSheetsToV9 = (sheetsData) => {
-  return Object.keys(sheetsData).reduce((acc, catKey) => {
+  const keyMap = { pisosProntos: "pisopronto" };
+  const result = {};
+  Object.keys(sheetsData).forEach((catKey) => {
+    if (catKey === "vendedores") return;
+    const outKey = keyMap[catKey] || catKey;
     const items = sheetsData[catKey] || [];
-    acc[catKey] = items.map((item) => {
+    result[outKey] = items.map((item) => {
       const mapped = {
         id: item.id,
         f: item.fornecedor || "",
         e: item.especie || "",
         p: item.produto || "",
-        u: item.unidade || "m²",
+        u: item.unidade || "m\u00b2",
         cd: item.condicao || "",
         ob: item.obs || "",
-        d: item.disponivel || "",
+        d: item.disponivel || item.qtdDisp || item.m2Disp || "",
         dt: item.destaque || false,
-        ts: item.atualizado ? new Date(item.atualizado).getTime() : Date.now(),
+        ts: parseTS(item.atualizado),
       };
-
       if (catKey === "nativa") {
         mapped.pv = item.precoVista;
-        mapped.pm = item.precoPrazo;
+        mapped.pp = item.precoPrazo;
       } else if (catKey === "beneficiada") {
         mapped.tp = item.tipo;
         mapped.dm = item.dimensoes;
         mapped.pv = item.precoVista;
         mapped.pm = item.precoMedio;
         mapped.pl = item.precoLongo;
+        mapped.d = item.qtdDisp || "";
       } else if (catKey === "compensados") {
-        mapped.pv = item.precoVista;
-        if (item.subs && item.subs.length > 0) {
-          mapped.subs = item.subs;
-        }
+        if (item.subs && item.subs.length > 0) { mapped.subs = item.subs; }
       } else if (catKey === "reflorestamento") {
-        mapped.pv = item.precoBase || item.precoTotal;
+        mapped.pv = item.precoTotal || item.precoBase;
       } else if (catKey === "portas") {
-        if (item.subs && item.subs.length > 0) {
-          mapped.subs = item.subs;
-        }
+        if (item.subs && item.subs.length > 0) { mapped.subs = item.subs; }
       } else if (catKey === "pisosProntos") {
         mapped.dm = item.dimensoes;
         mapped.pv = item.precoVista;
         mapped.pm = item.precoMedio;
         mapped.pl = item.precoLongo;
+        mapped.d = item.m2Disp || "";
       }
-
       return mapped;
     });
-    return acc;
-  }, {});
+  });
+  return result;
 };
-
 const fmt=v=>v!=null?v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—";
 const nm=i=>{if(i.e&&i.p)return`${i.e} — ${i.p}`;if(i.e&&i.dm)return`${i.e} — ${i.dm}`;return i.e||i.p||i.dm||"—";};
 const pr=(i,u)=>{const p=i.pv;return!p?null:u.tipo==="admin"?p:Math.round(p*(1+u.mg/100));};
