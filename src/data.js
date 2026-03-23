@@ -25,6 +25,21 @@ const parseNum = (v) => {
   return isNaN(n) ? null : n;
 };
 
+const parseNativa = (row) => ({
+  id: `nat-${Math.random().toString(36).slice(2, 8)}`,
+  fornecedor: row['Fornecedor'] || '',
+  especie: row['Espécie'] || row['Especie'] || '',
+  produto: row['Produto'] || '',
+  disponivel: row['Disponível'] || row['Disponivel'] || '',
+  unidade: row['Unidade'] || 'm³',
+  precoVista: parseNum(row['Preço À Vista'] || row['Preco A Vista']),
+  precoPrazo: parseNum(row['Preço a Prazo'] || row['Preco a Prazo']),
+  condicao: row['Condição Pgto'] || row['Condicao Pgto'] || '',
+  obs: row['Obs'] || '',
+  destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
+  atualizado: row['Atualizado'] || '',
+});
+
 const parseBeneficiada = (row) => ({
   id: `ben-${Math.random().toString(36).slice(2, 8)}`,
   fornecedor: row['Fornecedor'] || '',
@@ -43,21 +58,6 @@ const parseBeneficiada = (row) => ({
   atualizado: row['Atualizado'] || '',
 });
 
-const parseNativa = (row) => ({
-  id: `nat-${Math.random().toString(36).slice(2, 8)}`,
-  fornecedor: row['Fornecedor'] || '',
-  especie: row['Espécie'] || row['Especie'] || '',
-  produto: row['Produto'] || '',
-  disponivel: row['Disponível'] || row['Disponivel'] || '',
-  unidade: row['Unidade'] || 'm³',
-  precoVista: parseNum(row['Preço À Vista'] || row['Preco A Vista']),
-  precoPrazo: parseNum(row['Preço a Prazo'] || row['Preco a Prazo']),
-  condicao: row['Condição Pgto'] || row['Condicao Pgto'] || '',
-  obs: row['Obs'] || '',
-  destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
-  atualizado: row['Atualizado'] || '',
-});
-
 const parseReflorestamento = (row) => ({
   id: `ref-${Math.random().toString(36).slice(2, 8)}`,
   fornecedor: row['Fornecedor'] || '',
@@ -72,6 +72,68 @@ const parseReflorestamento = (row) => ({
   obs: row['Obs'] || '',
   atualizado: row['Atualizado'] || '',
 });
+
+const parseCompensados = (row, index) => {
+  const item = {
+    id: `comp-${Math.random().toString(36).slice(2, 8)}`,
+    fornecedor: row['Fornecedor'] || '',
+    especie: row['Espécie'] || row['Especie'] || '',
+    produto: row['Produto'] || '',
+    unidade: row['Unidade'] || 'chapa',
+    condicao: row['Condição'] || row['Condicao'] || '',
+    obs: row['Obs'] || '',
+    disponivel: row['Disponível'] || row['Disponivel'] || '',
+    destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
+    atualizado: row['Atualizado'] || '',
+  };
+
+  const medidas = ['4mm', '6mm', '10mm', '15mm', '18mm', '20mm', '25mm'];
+  const subs = [];
+
+  medidas.forEach((med) => {
+    const precoKey = `${med}`;
+    const preco = parseNum(row[precoKey]);
+    if (preco !== null) {
+      subs.push({ med, pv: preco });
+    }
+  });
+
+  if (subs.length > 0) {
+    item.subs = subs;
+  }
+
+  return item;
+};
+
+const parsePortas = (row) => {
+  const item = {
+    id: `port-${Math.random().toString(36).slice(2, 8)}`,
+    fornecedor: row['Fornecedor'] || '',
+    produto: row['Produto'] || '',
+    unidade: row['Unidade'] || 'un',
+    condicao: row['Condição'] || row['Condicao'] || '',
+    obs: row['Obs'] || '',
+    disponivel: row['Disponível'] || row['Disponivel'] || '',
+    destaque: (row['Destaque'] || '').toUpperCase() === 'SIM',
+    atualizado: row['Atualizado'] || '',
+  };
+
+  const tamanhos = ['60x210cm', '70x210cm', '80x210cm', '90x210cm', '100x210cm'];
+  const subs = [];
+
+  tamanhos.forEach((tam) => {
+    const preco = parseNum(row[tam]);
+    if (preco !== null) {
+      subs.push({ med: tam, pv: preco });
+    }
+  });
+
+  if (subs.length > 0) {
+    item.subs = subs;
+  }
+
+  return item;
+};
 
 const parsePisosProntos = (row) => ({
   id: `pp-${Math.random().toString(36).slice(2, 8)}`,
@@ -99,10 +161,12 @@ const parseVendedores = (row) => ({
 });
 
 export const loadAllData = async () => {
-  const [nativaRaw, beneficiadaRaw, reflorestamentoRaw, pisosRaw, vendedoresRaw] = await Promise.all([
+  const [nativaRaw, beneficiadaRaw, compensadosRaw, reflorestamentoRaw, portasRaw, pisosRaw, vendedoresRaw] = await Promise.all([
     fetchSheet(SHEET_NAMES.nativaBruta),
     fetchSheet(SHEET_NAMES.beneficiada),
+    fetchSheet(SHEET_NAMES.compensados),
     fetchSheet(SHEET_NAMES.reflorestamento),
+    fetchSheet(SHEET_NAMES.portas),
     fetchSheet(SHEET_NAMES.pisosProntos),
     fetchSheet(SHEET_NAMES.vendedores),
   ]);
@@ -110,7 +174,9 @@ export const loadAllData = async () => {
   return {
     nativa: nativaRaw.map(parseNativa).filter(r => r.fornecedor),
     beneficiada: beneficiadaRaw.map(parseBeneficiada).filter(r => r.fornecedor),
+    compensados: compensadosRaw.map(parseCompensados).filter(r => r.fornecedor),
     reflorestamento: reflorestamentoRaw.map(parseReflorestamento).filter(r => r.fornecedor),
+    portas: portasRaw.map(parsePortas).filter(r => r.fornecedor),
     pisosProntos: pisosRaw.map(parsePisosProntos).filter(r => r.fornecedor),
     vendedores: vendedoresRaw.map(parseVendedores).filter(r => r.id),
   };
